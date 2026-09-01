@@ -75,10 +75,6 @@
 
       <label for="pImageUrl">Image URL</label>
       <input id="pImageUrl" type="url" placeholder="Link to a hosted screenshot" />
-      <div style="margin:6px 0;color:var(--color-text-muted);font-size:0.8rem;">— or —</div>
-      <label for="pImageUpload">Upload an image</label>
-      <input id="pImageUpload" type="file" accept="image/*" />
-      <div id="pImageUploadError" class="form-error" role="alert" hidden style="margin-top:6px;"></div>
 
       <label for="pCompletionDate">Completion date</label>
       <input id="pCompletionDate" type="date" />
@@ -96,7 +92,7 @@
   <script type="module">
     import { requireRole } from './auth.js';
     import { supabase } from './supabase-client.js';
-    import {uniqueSlug, escapeHtml, uploadFile, applySidebarBrand, initMobileSidebarToggle} from './utils.js';
+    import {uniqueSlug, escapeHtml, applySidebarBrand, initMobileSidebarToggle} from './utils.js';
     applySidebarBrand(supabase);
     initMobileSidebarToggle();
 
@@ -168,30 +164,6 @@
     }
 
     document.getElementById('newProjectBtn').addEventListener('click', () => openModal());
-
-    document.getElementById('pImageUpload').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const errorBox = document.getElementById('pImageUploadError');
-      errorBox.hidden = true;
-      const label = e.target.previousElementSibling;
-      const originalLabel = label.textContent;
-      label.textContent = 'Uploading…';
-
-      const { url, error } = await uploadFile(supabase, 'project-images', file, profile.id);
-
-      label.textContent = originalLabel;
-      e.target.value = '';
-
-      if (error) {
-        errorBox.textContent = error;
-        errorBox.hidden = false;
-        return;
-      }
-
-      document.getElementById('pImageUrl').value = url;
-    });
     document.getElementById('cancelBtn').addEventListener('click', closeModal);
 
     document.getElementById('projectForm').addEventListener('submit', async (e) => {

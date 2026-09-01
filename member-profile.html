@@ -41,10 +41,6 @@
 
         <label for="photoUrl">Profile photo URL</label>
         <input id="photoUrl" type="url" placeholder="Paste a direct link to your photo (e.g. from Imgur, Google Drive, etc.)" />
-        <div style="margin:8px 0;color:var(--color-text-muted);font-size:0.8rem;">— or —</div>
-        <label for="photoUpload">Upload a photo from your device</label>
-        <input id="photoUpload" type="file" accept="image/*" />
-        <div id="uploadError" class="form-error" role="alert" hidden style="margin-top:8px;"></div>
         <div id="photoPreviewWrap" style="margin-top:8px;"></div>
 
         <label for="phoneNumber">Phone number</label>
@@ -153,7 +149,7 @@
   <script type="module">
     import { requireRole } from './auth.js';
     import { supabase } from './supabase-client.js';
-    import {uploadFile, applySidebarBrand, initMobileSidebarToggle} from './utils.js';
+    import {applySidebarBrand, initMobileSidebarToggle} from './utils.js';
     applySidebarBrand(supabase);
     initMobileSidebarToggle();
 
@@ -209,31 +205,6 @@
     }
     document.getElementById('photoUrl').addEventListener('input', renderPhotoPreview);
     renderPhotoPreview();
-
-    document.getElementById('photoUpload').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const errorBox = document.getElementById('uploadError');
-      errorBox.hidden = true;
-      const label = e.target.previousElementSibling;
-      const originalLabel = label.textContent;
-      label.textContent = 'Uploading…';
-
-      const { url, error } = await uploadFile(supabase, 'avatars', file, profile.id);
-
-      label.textContent = originalLabel;
-      e.target.value = '';
-
-      if (error) {
-        errorBox.textContent = error;
-        errorBox.hidden = false;
-        return;
-      }
-
-      document.getElementById('photoUrl').value = url;
-      renderPhotoPreview();
-    });
 
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
       e.preventDefault();
