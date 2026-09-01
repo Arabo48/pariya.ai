@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Platform Settings</title>
+  <link rel="stylesheet" href="main.css" />
+  <link rel="stylesheet" href="forms.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+  <script src="env-config.js" defer></script>
+</head>
+<body>
+  <button type="button" class="back-button" onclick="if (document.referrer && document.referrer.indexOf(location.host) !== -1 && document.referrer !== location.href) { history.back(); } else { location.href = 'admin-dashboard.html'; }">&larr; Back</button>
+    <div class="mobile-topbar">
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">&#9776;</button>
+    <span class="mobile-topbar-brand" id="mobileBrand">Menu</span>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="dashboard-sidebar" id="dashboardSidebar">
+      <div class="brand" id="sidebarBrand">ADMIN</div>
+      <nav>
+        <a href="admin-dashboard.html">Overview</a>
+        <a href="admin-members.html">Members</a>
+        <a href="admin-skills.html">Skills &amp; Categories</a>
+        <a href="admin-opportunities.html">Opportunities</a>
+        <a href="admin-events.html">Events</a>
+        <a href="admin-mentors.html">Mentors</a>
+        <a href="admin-neighborhoods.html">Neighborhoods</a>
+        <a href="admin-announcements.html">Announcements</a>
+        <a href="admin-reports.html">Reports</a>
+        <a href="admin-verification.html">Verification Requests</a>
+        <a href="admin-audit-log.html">Audit Log</a>
+        <a href="admin-settings.html" class="active">Platform Settings</a>
+        <a href="index.html" style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Home</a>
+        <a href="member-dashboard.html" style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Switch to Member View</a>
+      </nav>
+    </aside>
+
+    <main class="dashboard-main" style="max-width:600px;">
+      <h1>Platform Settings</h1>
+
+      <form id="settingsForm" class="auth-card" style="max-width:none;padding:0;background:none;border:none;">
+        <label for="platformName">Platform name</label>
+        <input id="platformName" required />
+
+        <label for="description">Description</label>
+        <textarea id="description" rows="2"></textarea>
+
+        <label for="logoUrl">Logo URL</label>
+        <input id="logoUrl" type="url" placeholder="Paste a direct link to your logo image" />
+        <div style="margin:6px 0;color:var(--color-text-muted);font-size:0.8rem;">— or —</div>
+        <label for="logoUpload">Upload a logo</label>
+        <input id="logoUpload" type="file" accept="image/*" />
+        <div id="logoUploadError" class="form-error" role="alert" hidden style="margin-top:6px;"></div>
+        <div id="logoPreviewWrap" style="margin-top:8px;"></div>
+
+        <label for="faviconUrl">Favicon URL</label>
+        <input id="faviconUrl" type="url" />
+
+        <label for="contactEmail">Contact email</label>
+        <input id="contactEmail" type="email" />
+
+        <label for="contactPhone">Contact phone</label>
+        <input id="contactPhone" />
+
+        <label for="communityLocation">Community location</label>
+        <input id="communityLocation" />
+
+        <label for="primaryColor">Primary color</label>
+        <input id="primaryColor" type="color" style="height:44px;padding:4px;" />
+
+        <label for="accentColor">Accent color</label>
+        <input id="accentColor" type="color" style="height:44px;padding:4px;" />
+
+        <label for="footerText">Footer text</label>
+        <input id="footerText" />
+
+        <div id="formError" class="form-error" role="alert" hidden></div>
+        <div id="formSuccess" class="form-success" role="status" hidden></div>
+
+        <button type="submit" class="btn-primary btn-large" id="saveBtn">Save Settings</button>
+      </form>
+
+      <section class="profile-section">
+        <h2 style="font-size:1.05rem;">Homepage Photo Gallery</h2>
+        <p class="placeholder-text" style="margin-bottom:14px;">Add direct image links to display in a gallery on the homepage.</p>
+
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <input id="newGalleryUrl" type="url" placeholder="Direct image URL" style="flex:1;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:8px;padding:10px;color:var(--color-text);" />
+          <input id="newGalleryCaption" placeholder="Caption (optional)" style="flex:1;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:8px;padding:10px;color:var(--color-text);" />
+          <button class="btn-primary" id="addGalleryBtn" type="button">Add</button>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label for="galleryUpload" style="font-size:0.85rem;color:var(--color-text-muted);">— or upload a photo directly —</label>
+          <input id="galleryUpload" type="file" accept="image/*" style="display:block;margin-top:6px;" />
+        </div>
+        <div id="galleryError" class="form-error" role="alert" hidden style="margin-bottom:14px;"></div>
+
+        <div id="galleryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;">
+          <p class="placeholder-text">Loading…</p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <script type="module">
+    import { requireRole } from './auth.js';
+    import { supabase } from './supabase-client.js';
+    applySidebarBrand(supabase);
+    initMobileSidebarToggle();
+    import { logAdminAction } from './audit-log.js';
+    import {escapeHtml, uploadFile, applySidebarBrand, initMobileSidebarToggle} from './utils.js';
+
+    // Matches the RLS policy: any admin or super_admin can manage
+    // platform settings (Section 29: "Only admins can manage platform settings").
+    const admin = await requireRole(['admin', 'super_admin']);
+    if (!admin) throw new Error('Not authorized');
+
+    let settingsId = null;
+
+    async function load() {
+      const { data } = await supabase.from('platform_settings').select('*').limit(1).maybeSingle();
+      if (!data) return;
+      settingsId = data.id;
+
+      document.getElementById('platformName').value = data.platform_name || '';
+      document.getElementById('description').value = data.description || '';
+      document.getElementById('logoUrl').value = data.logo_url || '';
+      document.getElementById('faviconUrl').value = data.favicon_url || '';
+      document.getElementById('contactEmail').value = data.contact_email || '';
+      document.getElementById('contactPhone').value = data.contact_phone || '';
+      document.getElementById('communityLocation').value = data.community_location || '';
+      document.getElementById('primaryColor').value = data.primary_color || '#0F172A';
+      document.getElementById('accentColor').value = data.accent_color || '#2563EB';
+      document.getElementById('footerText').value = data.footer_text || '';
+      renderLogoPreview();
+    }
+
+    function renderLogoPreview() {
+      const url = document.getElementById('logoUrl').value.trim();
+      const wrap = document.getElementById('logoPreviewWrap');
+      wrap.innerHTML = url
+        ? `<img src="${url}" alt="Logo preview" style="max-height:60px;max-width:200px;object-fit:contain;background:var(--color-surface-2);border-radius:8px;padding:6px;" onerror="this.style.display='none'" />`
+        : '';
+    }
+    document.getElementById('logoUrl').addEventListener('input', renderLogoPreview);
+
+    document.getElementById('logoUpload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const errorBox = document.getElementById('logoUploadError');
+      errorBox.hidden = true;
+      const label = e.target.previousElementSibling;
+      const originalLabel = label.textContent;
+      label.textContent = 'Uploading…';
+
+      const { url, error } = await uploadFile(supabase, 'platform-assets', file, 'logo');
+
+      label.textContent = originalLabel;
+      e.target.value = '';
+
+      if (error) {
+        errorBox.textContent = error;
+        errorBox.hidden = false;
+        return;
+      }
+
+      document.getElementById('logoUrl').value = url;
+      renderLogoPreview();
+    });
+
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById('formError');
+      const successBox = document.getElementById('formSuccess');
+      const btn = document.getElementById('saveBtn');
+      errorBox.hidden = true;
+      successBox.hidden = true;
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      const payload = {
+        platform_name: document.getElementById('platformName').value.trim(),
+        description: document.getElementById('description').value.trim() || null,
+        logo_url: document.getElementById('logoUrl').value.trim() || null,
+        favicon_url: document.getElementById('faviconUrl').value.trim() || null,
+        contact_email: document.getElementById('contactEmail').value.trim() || null,
+        contact_phone: document.getElementById('contactPhone').value.trim() || null,
+        community_location: document.getElementById('communityLocation').value.trim() || null,
+        primary_color: document.getElementById('primaryColor').value,
+        accent_color: document.getElementById('accentColor').value,
+        footer_text: document.getElementById('footerText').value.trim() || null,
+        updated_by: admin.id,
+      };
+
+      const { error } = await supabase.from('platform_settings').update(payload).eq('id', settingsId);
+      btn.disabled = false;
+      btn.textContent = 'Save Settings';
+
+      if (error) {
+        errorBox.textContent = 'Could not save settings. Please try again.';
+        errorBox.hidden = false;
+        return;
+      }
+
+      await logAdminAction({ adminId: admin.id, action: 'settings_updated', targetTable: 'platform_settings', targetId: settingsId });
+      successBox.textContent = 'Settings saved.';
+      successBox.hidden = false;
+    });
+
+    async function loadGallery() {
+      const { data, error } = await supabase
+        .from('gallery_images')
+        .select('id, image_url, caption')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      const grid = document.getElementById('galleryGrid');
+      if (error || !data || data.length === 0) {
+        grid.innerHTML = '<p class="placeholder-text">No gallery photos added yet.</p>';
+        return;
+      }
+
+      grid.innerHTML = data.map(g => `
+        <div style="position:relative;">
+          <img loading="lazy" src="${g.image_url}" alt="${escapeHtml(g.caption || '')}" style="width:100%;height:100px;object-fit:cover;border-radius:8px;background:var(--color-surface-2);" onerror="this.style.opacity='0.3'" />
+          <button type="button" class="btn-ghost remove-gallery-btn" data-id="${g.id}" style="position:absolute;top:4px;right:4px;padding:2px 8px;font-size:0.75rem;background:var(--color-bg);">✕</button>
+          ${g.caption ? `<p class="placeholder-text" style="font-size:0.72rem;margin:4px 0 0;">${escapeHtml(g.caption)}</p>` : ''}
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.remove-gallery-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Remove this photo from the gallery?')) return;
+          await supabase.from('gallery_images').delete().eq('id', btn.dataset.id);
+          loadGallery();
+        });
+      });
+    }
+
+    document.getElementById('addGalleryBtn').addEventListener('click', async () => {
+      const urlInput = document.getElementById('newGalleryUrl');
+      const captionInput = document.getElementById('newGalleryCaption');
+      const errorBox = document.getElementById('galleryError');
+      errorBox.hidden = true;
+
+      const url = urlInput.value.trim();
+      if (!url) return;
+
+      const { error } = await supabase.from('gallery_images').insert({
+        image_url: url,
+        caption: captionInput.value.trim() || null,
+        created_by: admin.id,
+      });
+
+      if (error) {
+        errorBox.textContent = 'Could not add this photo. Please check the URL and try again.';
+        errorBox.hidden = false;
+        return;
+      }
+
+      urlInput.value = '';
+      captionInput.value = '';
+      loadGallery();
+    });
+
+    document.getElementById('galleryUpload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const errorBox = document.getElementById('galleryError');
+      errorBox.hidden = true;
+      const label = e.target.previousElementSibling;
+      const originalLabel = label.textContent;
+      label.textContent = 'Uploading…';
+
+      const { url, error: uploadError } = await uploadFile(supabase, 'gallery', file, 'photos');
+
+      label.textContent = originalLabel;
+      e.target.value = '';
+
+      if (uploadError) {
+        errorBox.textContent = uploadError;
+        errorBox.hidden = false;
+        return;
+      }
+
+      const caption = document.getElementById('newGalleryCaption').value.trim() || null;
+      const { error: insertError } = await supabase.from('gallery_images').insert({
+        image_url: url,
+        caption,
+        created_by: admin.id,
+      });
+
+      if (insertError) {
+        errorBox.textContent = 'Photo uploaded but could not be saved. Please try again.';
+        errorBox.hidden = false;
+        return;
+      }
+
+      document.getElementById('newGalleryCaption').value = '';
+      loadGallery();
+    });
+
+    load();
+    loadGallery();
+  </script>
+</body>
+</html>

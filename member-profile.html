@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit My Profile</title>
+  <link rel="stylesheet" href="main.css" />
+  <link rel="stylesheet" href="forms.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+  <script src="env-config.js" defer></script>
+</head>
+<body>
+  <button type="button" class="back-button" onclick="if (document.referrer && document.referrer.indexOf(location.host) !== -1 && document.referrer !== location.href) { history.back(); } else { location.href = 'member-dashboard.html'; }">&larr; Back</button>
+    <div class="mobile-topbar">
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">&#9776;</button>
+    <span class="mobile-topbar-brand" id="mobileBrand">Menu</span>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="dashboard-sidebar" id="dashboardSidebar">
+      <div class="brand" id="sidebarBrand">MY TOWN TECH</div>
+      <nav>
+        <a href="member-dashboard.html">Overview</a>
+        <a href="member-connections.html">Connections</a>
+        <a href="member-messages.html">Messages</a>
+        <a href="member-profile.html" class="active">My Profile</a>
+        <a href="member-skills.html">My Skills</a>
+        <a href="member-projects.html">My Projects</a>
+        <a href="member-settings.html">Settings</a>
+        <a href="index.html" style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Home</a>
+        <a href="admin-dashboard.html" id="switchToAdminLink" hidden style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Switch to Admin View</a>
+      </nav>
+    </aside>
+
+    <main class="dashboard-main" style="max-width:640px;">
+      <h1>Edit My Profile</h1>
+
+      <form id="profileForm" class="auth-card" style="max-width:none;padding:0;background:none;border:none;">
+        <label for="fullName">Full name</label>
+        <input id="fullName" required />
+
+        <label for="photoUrl">Profile photo URL</label>
+        <input id="photoUrl" type="url" placeholder="Paste a direct link to your photo (e.g. from Imgur, Google Drive, etc.)" />
+        <div style="margin:8px 0;color:var(--color-text-muted);font-size:0.8rem;">— or —</div>
+        <label for="photoUpload">Upload a photo from your device</label>
+        <input id="photoUpload" type="file" accept="image/*" />
+        <div id="uploadError" class="form-error" role="alert" hidden style="margin-top:8px;"></div>
+        <div id="photoPreviewWrap" style="margin-top:8px;"></div>
+
+        <label for="phoneNumber">Phone number</label>
+        <input id="phoneNumber" type="tel" placeholder="e.g. +234 800 000 0000" />
+
+        <label for="headline">Professional headline</label>
+        <input id="headline" placeholder="e.g. Frontend Developer & UI Designer" />
+
+        <label for="bio">Bio</label>
+        <textarea id="bio" rows="4"></textarea>
+
+        <label for="professionalStatus">Professional status</label>
+        <select id="professionalStatus">
+          <option value="">Select…</option>
+          <option value="student">Student</option>
+          <option value="freelancer">Freelancer</option>
+          <option value="entrepreneur">Entrepreneur</option>
+          <option value="employed">Employed</option>
+          <option value="job_seeker">Job seeker</option>
+          <option value="developer">Developer</option>
+          <option value="designer">Designer</option>
+          <option value="teacher">Teacher</option>
+          <option value="researcher">Researcher</option>
+          <option value="other">Other</option>
+        </select>
+
+        <label for="experienceLevel">Experience level</label>
+        <select id="experienceLevel">
+          <option value="">Select…</option>
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+          <option value="expert">Expert</option>
+        </select>
+
+        <label for="yearsExperience">Years of experience</label>
+        <input id="yearsExperience" type="number" min="0" max="80" />
+
+        <label for="availability">Availability</label>
+        <select id="availability">
+          <option value="not_available">Not available</option>
+          <option value="available_freelance">Available for freelance work</option>
+          <option value="open_to_opportunities">Open to opportunities</option>
+        </select>
+
+        <label for="town">Town</label>
+        <input id="town" />
+
+        <label for="neighborhood">Neighborhood</label>
+        <select id="neighborhood">
+          <option value="">Select…</option>
+        </select>
+
+        <label for="state">State</label>
+        <input id="state" />
+
+        <label for="country">Country</label>
+        <input id="country" />
+
+        <label for="education">Education</label>
+        <input id="education" />
+
+        <label for="certifications">Certifications</label>
+        <input id="certifications" />
+
+        <label for="portfolioUrl">Portfolio URL</label>
+        <input id="portfolioUrl" type="url" />
+
+        <label for="githubUrl">GitHub URL</label>
+        <input id="githubUrl" type="url" />
+
+        <label for="linkedinUrl">LinkedIn URL</label>
+        <input id="linkedinUrl" type="url" />
+
+        <h3 style="margin-top:24px;">Privacy</h3>
+        <label for="phoneVisibility">Phone number visibility</label>
+        <select id="phoneVisibility">
+          <option value="private">Private</option>
+          <option value="members_only">Members only</option>
+          <option value="public">Public</option>
+        </select>
+
+        <label for="emailVisibility">Email visibility</label>
+        <select id="emailVisibility">
+          <option value="private">Private</option>
+          <option value="members_only">Members only</option>
+          <option value="public">Public</option>
+        </select>
+
+        <label for="locationVisibility">Location visibility</label>
+        <select id="locationVisibility">
+          <option value="private">Private</option>
+          <option value="members_only">Members only</option>
+          <option value="public">Public</option>
+        </select>
+
+        <div id="formError" class="form-error" role="alert" hidden></div>
+        <div id="formSuccess" class="form-success" role="status" hidden></div>
+
+        <button type="submit" class="btn-primary btn-large" id="saveBtn">Save Changes</button>
+      </form>
+    </main>
+  </div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <script type="module">
+    import { requireRole } from './auth.js';
+    import { supabase } from './supabase-client.js';
+    import {uploadFile, applySidebarBrand, initMobileSidebarToggle} from './utils.js';
+    applySidebarBrand(supabase);
+    initMobileSidebarToggle();
+
+    const profile = await requireRole(['member', 'mentor', 'organization', 'admin', 'super_admin']);
+    if (profile && ["admin", "super_admin"].includes(profile.role)) {
+      const switchLink = document.getElementById("switchToAdminLink");
+      if (switchLink) switchLink.hidden = false;
+    }
+    if (!profile) throw new Error('Not authorized');
+
+    const fields = {
+      fullName: 'full_name', photoUrl: 'profile_photo_url', phoneNumber: 'phone_number',
+      headline: 'professional_headline', bio: 'bio',
+      professionalStatus: 'professional_status', experienceLevel: 'experience_level',
+      yearsExperience: 'years_of_experience', availability: 'availability_status',
+      town: 'town', neighborhood: 'neighborhood_id', state: 'state', country: 'country',
+      education: 'education',
+      certifications: 'certifications', portfolioUrl: 'portfolio_url',
+      githubUrl: 'github_url', linkedinUrl: 'linkedin_url',
+      phoneVisibility: 'phone_visibility', emailVisibility: 'email_visibility',
+      locationVisibility: 'location_visibility',
+    };
+
+    // Populate the neighborhood dropdown BEFORE setting values below —
+    // setting .value on a <select> with no matching <option> yet is a
+    // silent no-op, which is why this field never showed the saved value.
+    const { data: neighborhoods } = await supabase
+      .from('neighborhoods')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name');
+    if (neighborhoods) {
+      const select = document.getElementById('neighborhood');
+      neighborhoods.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n.id;
+        opt.textContent = n.name;
+        select.appendChild(opt);
+      });
+    }
+
+    for (const [elId, col] of Object.entries(fields)) {
+      const el = document.getElementById(elId);
+      if (profile[col] !== null && profile[col] !== undefined) el.value = profile[col];
+    }
+
+    function renderPhotoPreview() {
+      const url = document.getElementById('photoUrl').value.trim();
+      const wrap = document.getElementById('photoPreviewWrap');
+      wrap.innerHTML = url
+        ? `<img src="${url}" alt="Profile photo preview" style="width:72px;height:72px;border-radius:50%;object-fit:cover;background:var(--color-surface-2);" onerror="this.style.display='none'" />`
+        : '';
+    }
+    document.getElementById('photoUrl').addEventListener('input', renderPhotoPreview);
+    renderPhotoPreview();
+
+    document.getElementById('photoUpload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const errorBox = document.getElementById('uploadError');
+      errorBox.hidden = true;
+      const label = e.target.previousElementSibling;
+      const originalLabel = label.textContent;
+      label.textContent = 'Uploading…';
+
+      const { url, error } = await uploadFile(supabase, 'avatars', file, profile.id);
+
+      label.textContent = originalLabel;
+      e.target.value = '';
+
+      if (error) {
+        errorBox.textContent = error;
+        errorBox.hidden = false;
+        return;
+      }
+
+      document.getElementById('photoUrl').value = url;
+      renderPhotoPreview();
+    });
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorBox = document.getElementById('formError');
+      const successBox = document.getElementById('formSuccess');
+      const saveBtn = document.getElementById('saveBtn');
+      errorBox.hidden = true;
+      successBox.hidden = true;
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+
+      const updates = {};
+      for (const [elId, col] of Object.entries(fields)) {
+        const el = document.getElementById(elId);
+        let val = el.value;
+        if (elId === 'yearsExperience') val = val ? parseInt(val, 10) : null;
+        if (val === '') val = null;
+        updates[col] = val;
+      }
+
+      // Note: role, is_verified, verification_status are intentionally
+      // never touched here — RLS would reject the update anyway, but
+      // we don't even attempt to send them (Section 29).
+      const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
+
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Changes';
+
+      if (error) {
+        errorBox.textContent = 'Could not save your profile. Please try again.';
+        errorBox.hidden = false;
+        return;
+      }
+      successBox.textContent = 'Profile updated.';
+      successBox.hidden = false;
+    });
+  </script>
+</body>
+</html>

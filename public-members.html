@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Discover talented young developers, designers, and tech professionals in our town." />
+  <meta property="og:title" content="MY TOWN DIGITAL & TECH COMMUNITY" />
+  <meta property="og:description" content="Discover talented young developers, designers, and tech professionals in our town." />
+  <meta property="og:type" content="website" />
+  <title>Find Members — MY TOWN DIGITAL & TECH COMMUNITY</title>
+  <link rel="stylesheet" href="main.css" />
+  <link rel="stylesheet" href="search.css" />
+  <script src="env-config.js" defer></script>
+</head>
+<body>
+  <button type="button" class="back-button" onclick="if (document.referrer && document.referrer.indexOf(location.host) !== -1 && document.referrer !== location.href) { history.back(); } else { location.href = 'index.html'; }">&larr; Back</button>
+  <header class="site-header">
+    <nav class="navbar" aria-label="Main navigation">
+      <a class="brand" href="index.html">MY TOWN DIGITAL &amp; TECH COMMUNITY</a>
+      <button type="button" class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">&#9776;</button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="public-members.html">Members</a></li>
+        <li><a href="public-skills.html">Skills</a></li>
+        <li><a href="public-login.html" class="btn-ghost">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="search-page">
+    <h1>Find Talent</h1>
+
+    <div class="search-bar">
+      <input type="text" id="qName" placeholder="Search by name or headline…" />
+    </div>
+
+    <div class="filters-row">
+      <select id="fSkill"><option value="">All skills</option></select>
+      <select id="fCategory"><option value="">All categories</option></select>
+      <select id="fExperience">
+        <option value="">Any experience level</option>
+        <option value="beginner">Beginner</option>
+        <option value="intermediate">Intermediate</option>
+        <option value="advanced">Advanced</option>
+        <option value="expert">Expert</option>
+      </select>
+      <select id="fAvailability">
+        <option value="">Any availability</option>
+        <option value="available_freelance">Available for freelance</option>
+        <option value="open_to_opportunities">Open to opportunities</option>
+      </select>
+      <select id="fStatus">
+        <option value="">Any professional status</option>
+        <option value="student">Student</option>
+        <option value="freelancer">Freelancer</option>
+        <option value="entrepreneur">Entrepreneur</option>
+        <option value="employed">Employed</option>
+        <option value="job_seeker">Job seeker</option>
+        <option value="developer">Developer</option>
+        <option value="designer">Designer</option>
+        <option value="teacher">Teacher</option>
+        <option value="researcher">Researcher</option>
+      </select>
+      <select id="fSort">
+        <option value="created_at_desc">Newest first</option>
+        <option value="name_asc">Name A–Z</option>
+      </select>
+    </div>
+
+    <p class="result-count" id="resultCount"></p>
+    <div class="card-grid" id="resultsGrid"><p class="placeholder-text">Loading…</p></div>
+
+    <div class="pagination">
+      <button id="prevPageBtn" class="btn-ghost" disabled>Previous</button>
+      <span id="pageIndicator">Page 1</span>
+      <button id="nextPageBtn" class="btn-ghost">Next</button>
+    </div>
+  </main>
+
+  <script type="module">
+    import { supabase } from './supabase-client.js';
+    import { VERIFIED_BADGE_SVG } from './utils.js';
+    let page = 0;
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str ?? '';
+      return div.innerHTML;
+    }
+
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    async function loadFilterOptions() {
+      const [{ data: skills }, { data: categories }] = await Promise.all([
+        supabase.from('skills').select('id, name').order('name'),
+        supabase.from('skill_categories').select('id, name').order('sort_order'),
+      ]);
+      document.getElementById('fSkill').insertAdjacentHTML('beforeend',
+        (skills || []).map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join(''));
+      document.getElementById('fCategory').insertAdjacentHTML('beforeend',
+        (categories || []).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join(''));
+
+      // Preselect skill from ?skill=<id> (linked from the skills directory)
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('skill')) document.getElementById('fSkill').value = params.get('skill');
+    }
+
+    async function search() {
+      const grid = document.getElementById('resultsGrid');
+      grid.innerHTML = '<p class="placeholder-text">Searching…</p>';
+
+      try {
+        const name = document.getElementById('qName').value.trim();
+        const skillId = document.getElementById('fSkill').value;
+        const categoryId = document.getElementById('fCategory').value;
+        const experience = document.getElementById('fExperience').value;
+        const availability = document.getElementById('fAvailability').value;
+        const status = document.getElementById('fStatus').value;
+        const sort = document.getElementById('fSort').value;
+
+        let memberIdsFromSkill = null;
+        if (skillId) {
+          const { data } = await supabase.from('member_skills').select('profile_id').eq('skill_id', skillId);
+          memberIdsFromSkill = (data || []).map(r => r.profile_id);
+          if (memberIdsFromSkill.length === 0) {
+            renderResults([], 0);
+            return;
+          }
+        } else if (categoryId) {
+          const { data: categorySkills } = await supabase.from('skills').select('id').eq('category_id', categoryId);
+          const skillIds = (categorySkills || []).map(s => s.id);
+          if (skillIds.length === 0) { renderResults([], 0); return; }
+          const { data } = await supabase.from('member_skills').select('profile_id').in('skill_id', skillIds);
+          memberIdsFromSkill = [...new Set((data || []).map(r => r.profile_id))];
+          if (memberIdsFromSkill.length === 0) { renderResults([], 0); return; }
+        }
+
+        let query = supabase
+          .from('profiles')
+          .select('id, username, full_name, professional_headline, profile_photo_url, is_verified, town, state, availability_status', { count: 'exact' })
+          .eq('profile_visibility', 'public')
+          .eq('is_suspended', false);
+
+        if (name) query = query.or(`full_name.ilike.%${name}%,professional_headline.ilike.%${name}%`);
+        if (experience) query = query.eq('experience_level', experience);
+        if (availability) query = query.eq('availability_status', availability);
+        if (status) query = query.eq('professional_status', status);
+        if (memberIdsFromSkill) query = query.in('id', memberIdsFromSkill);
+
+        query = sort === 'name_asc'
+          ? query.order('full_name', { ascending: true })
+          : query.order('created_at', { ascending: false });
+
+        query = query.range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+
+        const { data, count, error } = await query;
+        if (error) { grid.innerHTML = '<p class="placeholder-text">Something went wrong loading members. Please try again.</p>'; return; }
+        renderResults(data || [], count || 0);
+      } catch (err) {
+        grid.innerHTML = '<p class="placeholder-text">Something went wrong loading members. Please try again.</p>';
+      }
+    }
+
+    function renderResults(members, total) {
+      document.getElementById('resultCount').textContent = `${total} member${total === 1 ? '' : 's'} found`;
+      const grid = document.getElementById('resultsGrid');
+
+      if (members.length === 0) {
+        grid.innerHTML = '<p class="placeholder-text">No members match those filters yet.</p>';
+      } else {
+        grid.innerHTML = members.map(m => `
+          <a class="member-card" href="public-member-profile.html?u=${encodeURIComponent(m.username)}">
+            <img loading="lazy" src="${m.profile_photo_url || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231A2332'/%3E%3Ccircle cx='50' cy='38' r='18' fill='%23374151'/%3E%3Cpath d='M20 88c0-22 14-36 30-36s30 14 30 36' fill='%23374151'/%3E%3C/svg%3E"}" alt="" class="avatar" />
+            <h3>${escapeHtml(m.full_name)} ${m.is_verified ? VERIFIED_BADGE_SVG : ''}</h3>
+            <p>${escapeHtml(m.professional_headline || '')}</p>
+            ${m.town ? `<p class="member-location">📍 ${escapeHtml(m.town)}${m.state ? ', ' + escapeHtml(m.state) : ''}</p>` : ''}
+          </a>
+        `).join('');
+      }
+
+      document.getElementById('pageIndicator').textContent = `Page ${page + 1}`;
+      document.getElementById('prevPageBtn').disabled = page === 0;
+      document.getElementById('nextPageBtn').disabled = (page + 1) * PAGE_SIZE >= total;
+    }
+
+    document.getElementById('qName').addEventListener('input', debounce(() => { page = 0; search(); }, 350));
+    ['fSkill', 'fCategory', 'fExperience', 'fAvailability', 'fStatus', 'fSort'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => { page = 0; search(); });
+    });
+    document.getElementById('prevPageBtn').addEventListener('click', () => { page--; search(); });
+    document.getElementById('nextPageBtn').addEventListener('click', () => { page++; search(); });
+
+    loadFilterOptions().then(search);
+  </script>
+  <link rel="stylesheet" href="profile.css" />
+  <script>
+    document.getElementById('navToggle').addEventListener('click', () => {
+      const links = document.getElementById('navLinks');
+      const expanded = links.classList.toggle('open');
+      document.getElementById('navToggle').setAttribute('aria-expanded', String(expanded));
+    });
+  </script>
+</body>
+</html>

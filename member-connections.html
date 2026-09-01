@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Connections</title>
+  <link rel="stylesheet" href="main.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="profile.css" />
+  <script src="env-config.js" defer></script>
+</head>
+<body>
+  <button type="button" class="back-button" onclick="if (document.referrer && document.referrer.indexOf(location.host) !== -1 && document.referrer !== location.href) { history.back(); } else { location.href = 'member-dashboard.html'; }">&larr; Back</button>
+    <div class="mobile-topbar">
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">&#9776;</button>
+    <span class="mobile-topbar-brand" id="mobileBrand">Menu</span>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="dashboard-sidebar" id="dashboardSidebar">
+      <div class="brand" id="sidebarBrand">MY TOWN TECH</div>
+      <nav>
+        <a href="member-dashboard.html">Overview</a>
+        <a href="member-profile.html">My Profile</a>
+        <a href="member-connections.html" class="active">Connections</a>
+        <a href="member-messages.html">Messages</a>
+        <a href="member-opportunities.html">Opportunities</a>
+        <a href="member-events.html">Events</a>
+        <a href="member-mentorship.html">Mentorship</a>
+        <a href="member-settings.html">Settings</a>
+        <a href="index.html" style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Home</a>
+        <a href="admin-dashboard.html" id="switchToAdminLink" hidden style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Switch to Admin View</a>
+      </nav>
+    </aside>
+
+    <main class="dashboard-main">
+      <h1>My Connections</h1>
+
+      <section id="pendingReceivedSection" style="margin-top:16px;"></section>
+      <section id="pendingSentSection" style="margin-top:24px;"></section>
+
+      <h2 style="font-size:1.05rem;margin-top:30px;">Connected (<span id="connectedCount">0</span>)</h2>
+      <div class="card-grid" id="connectedGrid" style="margin-top:12px;">
+        <p class="placeholder-text">Loading…</p>
+      </div>
+
+      <h2 style="font-size:1.05rem;margin-top:30px;">Discover Members</h2>
+      <p class="placeholder-text">Browse other members and send a connection request.</p>
+      <div class="card-grid" id="discoverGrid" style="margin-top:12px;">
+        <p class="placeholder-text">Loading…</p>
+      </div>
+    </main>
+  </div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <script type="module">
+    import { requireRole } from './auth.js';
+    import { supabase } from './supabase-client.js';
+    import {applySidebarBrand, escapeHtml, VERIFIED_BADGE_SVG, initMobileSidebarToggle} from './utils.js';
+    applySidebarBrand(supabase);
+    initMobileSidebarToggle();
+
+    const profile = await requireRole(['member', 'mentor', 'organization', 'admin', 'super_admin']);
+    if (!profile) throw new Error('Not authorized');
+
+    if (['admin', 'super_admin'].includes(profile.role)) {
+      const switchLink = document.getElementById('switchToAdminLink');
+      if (switchLink) switchLink.hidden = false;
+    }
+
+    function profileCardHtml(p) {
+      const avatar = p.profile_photo_url || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231A2332'/%3E%3Ccircle cx='50' cy='38' r='18' fill='%23374151'/%3E%3Cpath d='M20 88c0-22 14-36 30-36s30 14 30 36' fill='%23374151'/%3E%3C/svg%3E";
+      return `
+        <img loading="lazy" src="${avatar}" alt="" class="avatar" />
+        <h3>${escapeHtml(p.full_name)} ${p.is_verified ? VERIFIED_BADGE_SVG : ''}</h3>
+        <p>${escapeHtml(p.professional_headline || '')}</p>
+      `;
+    }
+
+    async function loadPendingReceived() {
+      const { data, error } = await supabase
+        .from('connections')
+        .select('id, profiles!connections_requester_id_fkey(id, username, full_name, professional_headline, profile_photo_url, is_verified)')
+        .eq('addressee_id', profile.id)
+        .eq('status', 'pending');
+
+      const section = document.getElementById('pendingReceivedSection');
+      if (error || !data || data.length === 0) { section.innerHTML = ''; return; }
+
+      section.innerHTML = `
+        <h2 style="font-size:1.05rem;">Connection Requests (${data.length})</h2>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+          ${data.map(c => `
+            <div class="list-row">
+              <div>
+                <a href="public-member-profile.html?u=${encodeURIComponent(c.profiles.username)}"><strong>${escapeHtml(c.profiles.full_name)}</strong></a>
+                ${c.profiles.is_verified ? VERIFIED_BADGE_SVG : ''}
+                <p class="placeholder-text" style="margin:4px 0 0;">${escapeHtml(c.profiles.professional_headline || '')}</p>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-primary accept-btn" data-id="${c.id}">Accept</button>
+                <button class="btn-ghost reject-btn" data-id="${c.id}">Decline</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      section.querySelectorAll('.accept-btn').forEach(btn => btn.addEventListener('click', async () => {
+        await supabase.from('connections').update({ status: 'accepted' }).eq('id', btn.dataset.id);
+        loadAll();
+      }));
+      section.querySelectorAll('.reject-btn').forEach(btn => btn.addEventListener('click', async () => {
+        await supabase.from('connections').update({ status: 'rejected' }).eq('id', btn.dataset.id);
+        loadAll();
+      }));
+    }
+
+    async function loadPendingSent() {
+      const { data, error } = await supabase
+        .from('connections')
+        .select('id, profiles!connections_addressee_id_fkey(id, username, full_name, is_verified)')
+        .eq('requester_id', profile.id)
+        .eq('status', 'pending');
+
+      const section = document.getElementById('pendingSentSection');
+      if (error || !data || data.length === 0) { section.innerHTML = ''; return; }
+
+      section.innerHTML = `
+        <h2 style="font-size:1.05rem;">Sent Requests (${data.length})</h2>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+          ${data.map(c => `
+            <div class="list-row">
+              <div>
+                <a href="public-member-profile.html?u=${encodeURIComponent(c.profiles.username)}"><strong>${escapeHtml(c.profiles.full_name)}</strong></a>
+                ${c.profiles.is_verified ? VERIFIED_BADGE_SVG : ''}
+                <span class="status-badge">Pending</span>
+              </div>
+              <button class="btn-ghost cancel-btn" data-id="${c.id}">Cancel</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      section.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', async () => {
+        await supabase.from('connections').delete().eq('id', btn.dataset.id);
+        loadAll();
+      }));
+    }
+
+    async function loadConnected() {
+      const { data, error } = await supabase
+        .from('connections')
+        .select('id, requester_id, addressee_id, profiles!connections_requester_id_fkey(id, username, full_name, professional_headline, profile_photo_url, is_verified), addressee:profiles!connections_addressee_id_fkey(id, username, full_name, professional_headline, profile_photo_url, is_verified)')
+        .eq('status', 'accepted')
+        .or(`requester_id.eq.${profile.id},addressee_id.eq.${profile.id}`);
+
+      const grid = document.getElementById('connectedGrid');
+      document.getElementById('connectedCount').textContent = data ? data.length : 0;
+
+      if (error || !data || data.length === 0) {
+        grid.innerHTML = '<p class="placeholder-text">You have no connections yet. Visit a member\'s profile to connect.</p>';
+        return;
+      }
+
+      grid.innerHTML = data.map(c => {
+        const other = c.requester_id === profile.id ? c.addressee : c.profiles;
+        return `
+          <a class="member-card" href="public-member-profile.html?u=${encodeURIComponent(other.username)}">
+            ${profileCardHtml(other)}
+          </a>
+        `;
+      }).join('');
+    }
+
+    async function loadDiscoverMembers() {
+      const grid = document.getElementById('discoverGrid');
+      try {
+        // Everyone this member already has a connection record with
+        // (pending, accepted, or rejected) — exclude from discovery.
+        const { data: existingConns } = await supabase
+          .from('connections')
+          .select('requester_id, addressee_id')
+          .or(`requester_id.eq.${profile.id},addressee_id.eq.${profile.id}`);
+
+        const excludeIds = new Set([profile.id]);
+        (existingConns || []).forEach(c => {
+          excludeIds.add(c.requester_id);
+          excludeIds.add(c.addressee_id);
+        });
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, professional_headline, profile_photo_url, is_verified')
+          .eq('profile_visibility', 'public')
+          .eq('is_suspended', false)
+          .order('created_at', { ascending: false })
+          .limit(60);
+
+        if (error || !data) { grid.innerHTML = '<p class="placeholder-text">Could not load members. Please try again.</p>'; return; }
+
+        const discoverable = data.filter(p => !excludeIds.has(p.id));
+
+        if (discoverable.length === 0) {
+          grid.innerHTML = '<p class="placeholder-text">No new members to discover right now.</p>';
+          return;
+        }
+
+        grid.innerHTML = discoverable.map(p => `
+          <div class="member-card">
+            <a href="public-member-profile.html?u=${encodeURIComponent(p.username)}" style="display:block;">
+              ${profileCardHtml(p)}
+            </a>
+            <button type="button" class="btn-primary connect-btn" data-id="${p.id}" style="margin-top:10px;">Connect</button>
+          </div>
+        `).join('');
+
+        grid.querySelectorAll('.connect-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = 'Sending…';
+            const { error: insertError } = await supabase.from('connections').insert({
+              requester_id: profile.id, addressee_id: btn.dataset.id,
+            });
+            if (insertError) {
+              btn.textContent = 'Could not send';
+              return;
+            }
+            btn.textContent = 'Request Sent ✓';
+          });
+        });
+      } catch (err) {
+        grid.innerHTML = '<p class="placeholder-text">Could not load members. Please try again.</p>';
+      }
+    }
+
+    function loadAll() {
+      loadPendingReceived();
+      loadPendingSent();
+      loadConnected();
+      loadDiscoverMembers();
+    }
+
+    loadAll();
+  </script>
+  <style>.list-row { display: flex; justify-content: space-between; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px 16px; gap: 12px; }</style>
+</body>
+</html>

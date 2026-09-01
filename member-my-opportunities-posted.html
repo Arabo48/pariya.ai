@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Posted Opportunities</title>
+  <link rel="stylesheet" href="main.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+  <script src="env-config.js" defer></script>
+</head>
+<body>
+  <button type="button" class="back-button" onclick="if (document.referrer && document.referrer.indexOf(location.host) !== -1 && document.referrer !== location.href) { history.back(); } else { location.href = 'member-post-opportunity.html'; }">&larr; Back</button>
+    <div class="mobile-topbar">
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">&#9776;</button>
+    <span class="mobile-topbar-brand" id="mobileBrand">Menu</span>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="dashboard-sidebar" id="dashboardSidebar">
+      <div class="brand" id="sidebarBrand">MY TOWN TECH</div>
+      <nav>
+        <a href="member-dashboard.html">Overview</a>
+        <a href="member-post-opportunity.html">Post an Opportunity</a>
+        <a href="member-my-opportunities-posted.html" class="active">My Posted Opportunities</a>
+      <a href="index.html" style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Home</a>
+      </nav>
+    </aside>
+
+    <main class="dashboard-main">
+      <h1>My Posted Opportunities</h1>
+      <div id="list" style="display:flex;flex-direction:column;gap:12px;margin-top:16px;">
+        <p class="placeholder-text">Loading…</p>
+      </div>
+    </main>
+  </div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <script type="module">
+    import { requireRole } from './auth.js';
+    import { supabase } from './supabase-client.js';
+    import {escapeHtml, applySidebarBrand, initMobileSidebarToggle} from './utils.js';
+    applySidebarBrand(supabase);
+    initMobileSidebarToggle();
+
+    const profile = await requireRole(['organization', 'admin', 'super_admin']);
+    if (!profile) throw new Error('Not authorized');
+
+    async function load() {
+      const { data, error } = await supabase
+        .from('opportunities')
+        .select('id, title, slug, category, is_approved, created_at')
+        .eq('posted_by', profile.id)
+        .order('created_at', { ascending: false });
+
+      const list = document.getElementById('list');
+      if (error || !data || data.length === 0) {
+        list.innerHTML = '<p class="placeholder-text">You haven\'t posted any opportunities yet.</p>';
+        return;
+      }
+
+      list.innerHTML = data.map(o => `
+        <div class="list-row">
+          <div>
+            <a href="public-opportunity-detail.html?s=${encodeURIComponent(o.slug)}"><strong>${escapeHtml(o.title)}</strong></a>
+            <p class="placeholder-text" style="margin:4px 0 0;">${escapeHtml(o.category)}</p>
+          </div>
+          <span class="status-badge">${o.is_approved ? 'Live' : 'Pending approval'}</span>
+        </div>
+      `).join('');
+    }
+
+    load();
+  </script>
+  <style>
+    .list-row { display: flex; justify-content: space-between; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px 16px; }
+  </style>
+</body>
+</html>
