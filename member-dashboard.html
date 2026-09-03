@@ -20,9 +20,9 @@
       <div class="brand" id="sidebarBrand">MY TOWN TECH</div>
       <nav>
         <a href="member-dashboard.html" class="active">Overview</a>
+        <a href="member-profile.html">My Profile</a>
         <a href="member-connections.html">Connections</a>
         <a href="member-messages.html">Messages</a>
-        <a href="member-profile.html">My Profile</a>
         <a href="member-skills.html">My Skills</a>
         <a href="member-projects.html">My Projects</a>
         <a href="member-services.html">My Services</a>
@@ -78,18 +78,30 @@
       renderUnreadBadge(profile.id);
       document.getElementById('userName').innerHTML = `${escapeHtml(profile.full_name)} ${profile.is_verified ? VERIFIED_BADGE_SVG : ''}`;
 
-      const { data: latestAnnouncement } = await supabase
-        .from('announcements')
-        .select('title, body')
-        .eq('is_published', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      async function loadLatestAnnouncement() {
+        const { data: latestAnnouncement } = await supabase
+          .from('announcements')
+          .select('title, body')
+          .eq('is_published', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (latestAnnouncement) {
-        document.getElementById('announcementBanner').innerHTML =
-          `<p class="notice">📣 <strong>${escapeHtml(latestAnnouncement.title)}</strong> — ${escapeHtml(latestAnnouncement.body)} <a href="public-announcements.html">See all news</a></p>`;
+        if (latestAnnouncement) {
+          document.getElementById('announcementBanner').innerHTML =
+            `<p class="notice">📣 <strong>${escapeHtml(latestAnnouncement.title)}</strong> — ${escapeHtml(latestAnnouncement.body)} <a href="public-announcements.html">See all news</a></p>`;
+        } else {
+          document.getElementById('announcementBanner').innerHTML = '';
+        }
       }
+
+      loadLatestAnnouncement();
+
+      // Live: a newly posted announcement appears on the dashboard instantly.
+      supabase
+        .channel('announcements-updates')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, loadLatestAnnouncement)
+        .subscribe();
 
       // Real profile-completion calculation, not a placeholder number.
       const fields = [

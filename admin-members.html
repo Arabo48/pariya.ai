@@ -211,6 +211,13 @@
     document.getElementById('fSuspended').addEventListener('change', loadMembers);
 
     loadMembers();
+
+    // Live: new registrations or any profile change (role, verification,
+    // suspension) refreshes the table instantly.
+    supabase
+      .channel('admin-members-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, loadMembers)
+      .subscribe();
   </script>
 </body>
 </html>

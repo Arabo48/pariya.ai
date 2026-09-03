@@ -20,8 +20,17 @@
       <div class="brand" id="sidebarBrand">MY TOWN TECH</div>
       <nav>
         <a href="member-dashboard.html">Overview</a>
+        <a href="member-profile.html">My Profile</a>
         <a href="member-connections.html">Connections</a>
         <a href="member-messages.html">Messages</a>
+        <a href="member-skills.html">My Skills</a>
+        <a href="member-projects.html">My Projects</a>
+        <a href="member-services.html">My Services</a>
+        <a href="member-achievements.html">My Achievements</a>
+        <a href="member-opportunities.html">Opportunities</a>
+        <a href="member-events.html">Events</a>
+        <a href="member-mentorship.html">Mentorship</a>
+        <a href="member-inquiries.html">Inquiries</a>
         <a href="member-notifications.html" class="active">Notifications</a>
         <a href="member-settings.html">Settings</a>
         <a href="index.html" style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Home</a>
@@ -44,11 +53,13 @@
   <script type="module">
     import { requireRole } from './auth.js';
     import { supabase } from './supabase-client.js';
+    import { renderUnreadBadge } from './notifications-badge.js';
     import {escapeHtml, applySidebarBrand, initMobileSidebarToggle} from './utils.js';
     applySidebarBrand(supabase);
     initMobileSidebarToggle();
 
     const profile = await requireRole(['member', 'mentor', 'organization', 'admin', 'super_admin']);
+    renderUnreadBadge(profile.id);
     if (profile && ["admin", "super_admin"].includes(profile.role)) {
       const switchLink = document.getElementById("switchToAdminLink");
       if (switchLink) switchLink.hidden = false;
@@ -103,6 +114,17 @@
     });
 
     load();
+
+    // Live: new notifications, or read/unread changes, refresh the list instantly.
+    supabase
+      .channel('notifications-list-' + profile.id)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `profile_id=eq.${profile.id}`,
+      }, load)
+      .subscribe();
   </script>
   <style>
     .notif-row {

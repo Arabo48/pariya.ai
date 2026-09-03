@@ -111,6 +111,12 @@
     }
 
     load();
+
+    // Live: new verification requests appear instantly for admins.
+    supabase
+      .channel('admin-verification-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'verification_requests' }, load)
+      .subscribe();
   </script>
   <style>.list-row { display: flex; justify-content: space-between; align-items: flex-start; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px 16px; gap: 16px; }</style>
 </body>

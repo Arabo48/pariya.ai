@@ -106,6 +106,12 @@
 
     document.getElementById('fStatus').addEventListener('change', load);
     load();
+
+    // Live: new reports appear instantly for admins.
+    supabase
+      .channel('admin-reports-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, load)
+      .subscribe();
   </script>
   <style>.list-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px 16px; }</style>
 </body>

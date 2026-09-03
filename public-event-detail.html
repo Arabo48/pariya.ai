@@ -99,8 +99,19 @@
           if (!regError) render();
         });
       }
+
+      // Live: other visitors registering/cancelling update "spots remaining"
+      // for everyone viewing this page, without needing to click anything.
+      if (!subscribedToEvent) {
+        subscribedToEvent = true;
+        supabase
+          .channel('event-detail-registrations-' + event.id)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'event_registrations', filter: `event_id=eq.${event.id}` }, render)
+          .subscribe();
+      }
     }
 
+    let subscribedToEvent = false;
     render();
   </script>
   <script>

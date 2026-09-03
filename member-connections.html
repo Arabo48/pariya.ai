@@ -24,9 +24,15 @@
         <a href="member-profile.html">My Profile</a>
         <a href="member-connections.html" class="active">Connections</a>
         <a href="member-messages.html">Messages</a>
+        <a href="member-skills.html">My Skills</a>
+        <a href="member-projects.html">My Projects</a>
+        <a href="member-services.html">My Services</a>
+        <a href="member-achievements.html">My Achievements</a>
         <a href="member-opportunities.html">Opportunities</a>
         <a href="member-events.html">Events</a>
         <a href="member-mentorship.html">Mentorship</a>
+        <a href="member-inquiries.html">Inquiries</a>
+        <a href="member-notifications.html">Notifications</a>
         <a href="member-settings.html">Settings</a>
         <a href="index.html" style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Home</a>
         <a href="admin-dashboard.html" id="switchToAdminLink" hidden style="border-top:1px solid var(--color-border);margin-top:8px;padding-top:14px;">Switch to Admin View</a>
@@ -56,12 +62,14 @@
   <script type="module">
     import { requireRole } from './auth.js';
     import { supabase } from './supabase-client.js';
+    import { renderUnreadBadge } from './notifications-badge.js';
     import {applySidebarBrand, escapeHtml, VERIFIED_BADGE_SVG, initMobileSidebarToggle} from './utils.js';
     applySidebarBrand(supabase);
     initMobileSidebarToggle();
 
     const profile = await requireRole(['member', 'mentor', 'organization', 'admin', 'super_admin']);
     if (!profile) throw new Error('Not authorized');
+    renderUnreadBadge(profile.id);
 
     if (['admin', 'super_admin'].includes(profile.role)) {
       const switchLink = document.getElementById('switchToAdminLink');
@@ -242,6 +250,17 @@
     }
 
     loadAll();
+
+    // Live: connection requests need two subscriptions since a single
+    // realtime filter can't match "requester_id = me OR addressee_id = me".
+    supabase
+      .channel('connections-as-requester-' + profile.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `requester_id=eq.${profile.id}` }, loadAll)
+      .subscribe();
+    supabase
+      .channel('connections-as-addressee-' + profile.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `addressee_id=eq.${profile.id}` }, loadAll)
+      .subscribe();
   </script>
   <style>.list-row { display: flex; justify-content: space-between; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px 16px; gap: 12px; }</style>
 </body>

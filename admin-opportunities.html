@@ -105,6 +105,12 @@
     }
 
     load();
+
+    // Live: new opportunity submissions from organizations appear instantly.
+    supabase
+      .channel('admin-opportunities-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'opportunities' }, load)
+      .subscribe();
   </script>
 </body>
 </html>

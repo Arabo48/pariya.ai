@@ -145,6 +145,16 @@
     });
 
     load();
+
+    // Live: new events, or attendees registering/cancelling, refresh instantly.
+    supabase
+      .channel('admin-events-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, load)
+      .subscribe();
+    supabase
+      .channel('admin-event-registrations-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_registrations' }, load)
+      .subscribe();
   </script>
   <style>
     .attendees-panel { margin-top: 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 18px; }
